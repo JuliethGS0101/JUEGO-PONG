@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Juego de PONG</title>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+        }
+        canvas {
+            display: block;
+            background-color: #000;
+            margin: auto;
+        }
+        #restartBtn {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            font-size: 18px;
+            border: none;
+            cursor: pointer;
+            display: none; /* Inicialmente oculto */
+        }
+        #restartBtn:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+
+<canvas id="pongCanvas"></canvas>
+<button id="restartBtn" onclick="restartGame()">Reiniciar Juego</button>
+
+<script>
+// Obtener el contexto del canvas
+const canvas = document.getElementById("pongCanvas");
+const ctx = canvas.getContext("2d");
+
+// Configuración del canvas
+canvas.width = 800;
+canvas.height = 400;
+
+// Variables del juego
+const paddleWidth = 10;
+const paddleHeight = 100;
+const ballSize = 20;
+
+let playerY = canvas.height / 2 - paddleHeight / 2;
+let computerY = canvas.height / 2 - paddleHeight / 2;
+let ballX = canvas.width / 2;
+let ballY = canvas.height / 2;
+let ballSpeedX = 5;
+let ballSpeedY = 5;
+
+let playerScore = 0;
+let computerScore = 0;
+let gameOver = false; // Estado de fin de juego
+
+// Cargar los recursos del juego
+const fondo = new Image();
+fondo.src = 'fondo1.png';
+
+const barraJugador = new Image();
+barraJugador.src = 'barra1.png';
+
+const barraComputadora = new Image();
+barraComputadora.src = 'barra2.png';
+
+const bola = new Image();
+bola.src = 'bola.png';
+
+// Cargar los sonidos
+const reboteSound = new Audio('bounce.wav');
+const golSound = new Audio('jingle_win_synth_02.wav');
+
+// Función para dibujar rectángulos
+function drawRect(x, y, width, height, color) {
+    ctx.fillStyle = color;
+    ctx.fillRect(x, y, width, height);
+}
+
+// Función para dibujar el círculo (pelota)
+function drawCircle(x, y, radius, color) {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fill();
+}
+
+// Función para dibujar el texto
+function drawText(text, x, y, color) {
+    ctx.fillStyle = color;
+    ctx.font = "32px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText(text, x, y);
+}
+
+// Dibujo inicial
+function draw() {
+    // Fondo
+    ctx.drawImage(fondo, 0, 0, canvas.width, canvas.height);
+
+    // Raquetas
+    ctx.drawImage(barraJugador, 15, playerY, paddleWidth, paddleHeight);
+    ctx.drawImage(barraComputadora, canvas.width - 25, computerY, paddleWidth, paddleHeight);
+
+    // Pelota
+    ctx.drawImage(bola, ballX - ballSize / 2, ballY - ballSize / 2, ballSize, ballSize);
+
+    // Marcador
+    drawText(playerScore, canvas.width / 4, 50, "#fff");
+    drawText(computerScore, (3 * canvas.width) / 4, 50, "#fff");
+
+    // Mensaje de fin de juego
+    if (gameOver) {
+        drawText(playerScore === 5 ? "¡Ganaste!" : "¡Perdiste!", canvas.width / 2, canvas.height / 2, "#fff");
+    }
+}
+
+// Lógica del juego
+function update() {
+    if (gameOver) return; // Si el juego terminó, no actualices
+
+    // Movimiento de la pelota
+    ballX += ballSpeedX;
+    ballY += ballSpeedY;
+
+    // Rebote en las paredes
+    if (ballY <= 0 || ballY >= canvas.height) {
+        ballSpeedY *= -1;
+        reboteSound.play();  // Reproducir sonido de rebote
+    }
+
+    // Rebote en la raqueta del jugador
+    if (
+        ballX - ballSize / 2 <= 25 &&
+        ballY >= playerY &&
+        ballY <= playerY + paddleHeight
+    ) {
+        ballSpeedX *= -1;
+        reboteSound.play();  // Reproducir sonido de rebote
+    }
+
+    // Rebote en la raqueta de la computadora
+    if (
+        ballX + ballSize / 2 >= canvas.width - 25 &&
+        ballY >= computerY &&
+        ballY <= computerY + paddleHeight
+    ) {
+        ballSpeedX *= -1;
+        reboteSound.play();  // Reproducir sonido de rebote
+    }
+
+    // Anotar puntos
+    if (ballX < 0) {
+        computerScore++;
+        golSound.play();  // Reproducir sonido de gol
+        narrarMarcador();  // Narrar el marcador
+        if (computerScore === 5) {
+            gameOver = true;
+            document.getElementById("restartBtn").style.display = "block"; // Mostrar botón
+        }
+        resetBall();
+    } else if (ballX > canvas.width) {
+        playerScore++;
+        golSound.play();  // Reproducir sonido de gol
+        narrarMarcador();  // Narrar el marcador
+        if (playerScore === 5) {
+            gameOver = true;
+            document.getElementById("restartBtn").style.display = "block"; // Mostrar botón
+        }
+        resetBall();
+    }
+
+    // Movimiento de la computadora (IA básica)
+    if (computerY + paddleHeight / 2 < ballY) computerY += 4;
+    else if (computerY + paddleHeight / 2 > ballY) computerY -= 4;
+
+    // Restringir movimiento de la computadora
+    computerY = Math.max(Math.min(computerY, canvas.height - paddleHeight), 0);
+}
+
+// Reiniciar posición de la pelota
+function resetBall() {
+    ballX = canvas.width / 2;
+    ballY = canvas.height / 2;
+    ballSpeedX *= -1; // Cambiar dirección
+    ballSpeedY = 5 * (Math.random() > 0.5 ? 1 : -1); // Dirección aleatoria
+}
+
+// Función para narrar el marcador
+function narrarMarcador() {
+    let marcador = `El marcador es ${playerScore} a ${computerScore}`;
+    let narrador = new SpeechSynthesisUtterance(marcador);
+    window.speechSynthesis.speak(narrador);
+}
+
+// Controles del jugador
+window.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowUp" && !gameOver) playerY -= 50;
+    if (e.key === "ArrowDown" && !gameOver) playerY += 50;
+
+    // Restringir movimiento del jugador
+    playerY = Math.max(Math.min(playerY, canvas.height - paddleHeight), 0);
+});
+
+// Bucle principal del juego
+function gameLoop() {
+    update();
+    draw();
+    requestAnimationFrame(gameLoop);
+}
+
+// Función para reiniciar el juego
+function restartGame() {
+    playerScore = 0;
+    computerScore = 0;
+    gameOver = false;
+    document.getElementById("restartBtn").style.display = "none"; // Ocultar botón
+    resetBall();
+    gameLoop();
+}
+
+// Iniciar el juego
+gameLoop();
+</script>
+
+</body>
+</html>
